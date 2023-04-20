@@ -16,4 +16,7 @@ class FileUploadView(APIView):
     def post(self, request, format=None):
         serializer = FileUploadSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
-            return Response(process_data(serializer.validated_data['file']), status=200)
+            result = process_data(serializer.validated_data['file'])
+            print(result)
+            # return Response({"status": f'{result["Status"]}', "outcome": f'{result["Outcome"]}'}, status=200)
+            return Response({"status": 'OK'}, status=200)
