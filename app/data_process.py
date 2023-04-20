@@ -1,7 +1,7 @@
 import pandas as pd
 from datetime import datetime
 
-from django.db.models import Count
+from django.db.models import Count, Q
 
 from .models import Client, Item, ItemCustomer, Transaction
 
@@ -57,14 +57,28 @@ def handling_gems(queryset):
     top_clients = queryset.order_by("-spent_money")[:5]
 
     # items bought by top 5 customers
-    items_of_top_clients = ItemCustomer.objects.filter(client__in=top_clients)
+    items_top_clients = ItemCustomer.objects.filter(client__in=top_clients)
 
-    # items bought by at least 2 clients from top_clients
+    # and at least by 2 of them
+    items_top_clients = items_top_clients.values("item__name", "item").annotate(count=Count("item__name")).filter(count__gt=1)
 
-    items_of_at_least_2_clients = ItemCustomer.objects.annotate(num_buyers=Count('client')).filter(num_buyers__gte=2)
+    gems = []
+    gems_id = []
 
-    # items_of_top_clients = ItemCustomer.objects.filter(client__in=top_clients).values_list("Item__name", flat=True)
-    # print(items_of_top_clients.Item)
+    for item in items_top_clients:
+        gems.append(item["item__name"])
+        gems_id.append(item["item"])
+
+    # customers that have gems assigned
+
+    customers_gems = ItemCustomer.objects.filter(item__in=gems_id).distinct("client")
+
+    customers_gems_update = []
+    for element in customers_gems:
+        element.client.gems = gems
+        customers_gems_update.append(element.client)
+
+    Client.objects.bulk_update(customers_gems_update, ["gems"])
 
 
 def process_clients(dataframe):
