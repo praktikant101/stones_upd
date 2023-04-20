@@ -1,10 +1,13 @@
 import pandas as pd
 from datetime import datetime
 
-from .models import Client, Item, StoneCustomer, Transaction
+from django.db.models import Count
+
+from .models import Client, Item, ItemCustomer, Transaction
 
 import warnings
 
+# avoiding unnecessary warnings that litter logs
 warnings.filterwarnings("ignore", category=RuntimeWarning, message="DateTimeField .* received a naive datetime")
 
 
@@ -30,7 +33,7 @@ def process_transactions(dataframe):
 
         for row in dataframe.itertuples(index=True, name='Pandas'):
             transactions_to_create.append(Transaction(client=Client.objects.get(username=getattr(row, "customer")),
-                                                      stone=Item.objects.get(name=getattr(row, "item")),
+                                                      item=Item.objects.get(name=getattr(row, "item")),
                                                       price=getattr(row, "total"),
                                                       quantity=getattr(row, "quantity"),
                                                       date=getattr(row, "date")))
@@ -49,11 +52,28 @@ def process_transactions(dataframe):
     return result
 
 
+def handling_gems(queryset):
+    # clients that spent most money
+    top_clients = queryset.order_by("-spent_money")[:5]
+
+    # items bought by top 5 customers
+    items_of_top_clients = ItemCustomer.objects.filter(client__in=top_clients)
+
+    # items bought by at least 2 clients from top_clients
+
+    items_of_at_least_2_clients = ItemCustomer.objects.annotate(num_buyers=Count('client')).filter(num_buyers__gte=2)
+
+    # items_of_top_clients = ItemCustomer.objects.filter(client__in=top_clients).values_list("Item__name", flat=True)
+    # print(items_of_top_clients.Item)
+
+
 def process_clients(dataframe):
     result = {"Status": "Fail", "Outcome": ""}
 
+    clients = Client.objects.all()
+
     try:
-        username_values = Client.objects.values_list("username", flat=True)
+        username_values = clients.values_list("username", flat=True)
         clients_prices = dataframe.groupby("customer")["total"].agg(sum)
 
         new_customers = []
@@ -72,6 +92,12 @@ def process_clients(dataframe):
 
         result["Status"] = "OK"
         result["Outcome"] = "Data successfully processed"
+
+        try:
+            handling_gems(clients)
+        except Exception as e:
+            result["Outcome"] += "Failed to proceed gems data: " + str(e)
+            return result
 
         return result
 
@@ -110,18 +136,18 @@ def process_item_customer(dataframe):
     result = {"Status": "Fail", "Outcome": ""}
 
     try:
-        stone_customer_values = StoneCustomer.objects.values_list("stone__name", "client__username")
-        stone_customer_new = []
+        item_customer_values = ItemCustomer.objects.values_list("item__name", "client__username")
+        item_customer_new = []
 
-        for stone, clients in dataframe.groupby("item")["customer"].agg(set).items():
+        for item, clients in dataframe.groupby("item")["customer"].agg(set).items():
             for client in clients:
-                if (stone, client) in stone_customer_values:
+                if (item, client) in item_customer_values:
                     continue
                 else:
-                    stone_customer_new.append(StoneCustomer(stone=Item.objects.get(name=stone),
-                                                            client=Client.objects.get(username=client)))
+                    item_customer_new.append(ItemCustomer(item=Item.objects.get(name=item),
+                                                          client=Client.objects.get(username=client)))
 
-        StoneCustomer.objects.bulk_create(stone_customer_new)
+        ItemCustomer.objects.bulk_create(item_customer_new)
 
         result["Status"] = "OK"
         result["Outcome"] = "Data successfully processed"

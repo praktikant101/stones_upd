@@ -5,6 +5,7 @@ from .models import Client, Item
 
 
 def read_data(file):
+
     result = {"Status": "Fail", "Outcome": ""}
 
     if not file.name.endswith(".csv"):
@@ -31,13 +32,15 @@ def read_data(file):
 
 
 def process_data(file):
+
     result = {"Status": "Fail", "Outcome": ""}
 
     try:
         dataframe = read_data(file)
 
         if dataframe["Status"] == "Fail":
-            return dataframe["Outcome"]
+            result["Outcome"] = dataframe["Outcome"]
+            return result
 
         dataframe = dataframe["Outcome"]
 
@@ -73,5 +76,8 @@ def process_data(file):
         error = str(e)
         result["Outcome"] = "Failed to proceed data: " + error
         return result
+
+    result["Status"] = "OK"
+    result["Outcome"] = "Data successfully processed"
 
     return result
