@@ -1,7 +1,7 @@
 import pandas as pd
 from datetime import datetime
 
-from django.db.models import Count, Q
+from django.db.models import Count
 
 from .models import Client, Item, ItemCustomer, Transaction
 
@@ -12,7 +12,7 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, message="DateTimeFiel
 
 
 def process_transactions(dataframe):
-    # removing duplicates by checking uniqueness according to datetime
+    # removing duplicates by checking the uniqueness of transactions according to datetime
 
     result = {"Status": "Fail", "Outcome": ""}
 
@@ -53,7 +53,8 @@ def process_transactions(dataframe):
 
 
 def handling_gems(queryset):
-    # clients that spent most money
+
+    # top 5 clients that spent most money
     top_clients = queryset.order_by("-spent_money")[:5]
 
     # items bought by top 5 customers
@@ -106,12 +107,6 @@ def process_clients(dataframe):
 
         result["Status"] = "OK"
         result["Outcome"] = "Data successfully processed"
-
-        try:
-            handling_gems(clients)
-        except Exception as e:
-            result["Outcome"] += "Failed to proceed gems data: " + str(e)
-            return result
 
         return result
 

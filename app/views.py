@@ -1,3 +1,6 @@
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+
 from rest_framework import generics
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -25,7 +28,15 @@ class ClientGemsView(generics.ListAPIView):
     queryset = Client.objects.filter(gems__gt=[])
     serializer_class = ClientGemsSerializer
 
+    @method_decorator(cache_page(60 * 60))
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
+
 
 class ClientView(generics.ListAPIView):
     queryset = Client.objects.all()
     serializer_class = ClientGemsSerializer
+
+    @method_decorator(cache_page(60 * 60))
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
