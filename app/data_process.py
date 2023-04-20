@@ -21,9 +21,10 @@ def process_transactions(dataframe):
 
         values_list = list(Transaction.objects.values_list("date", flat=True))
 
-        dataframe = dataframe[~dataframe["date"].isin(values_list)]
+        values_list = pd.to_datetime(values_list, utc=False, errors='coerce')
+        values_list = values_list.tz_localize(None)
 
-        print(dataframe)
+        dataframe = dataframe[~dataframe["date"].isin(values_list)]
 
         transactions_to_create = []
 
@@ -36,8 +37,9 @@ def process_transactions(dataframe):
 
         Transaction.objects.bulk_create(transactions_to_create)
 
+        # saving filtered dataframe to return to work on it further while processing clients and items
         result["Status"] = "OK"
-        result["Outcome"] = "Data successfully processed"
+        result["Outcome"] = dataframe
 
     except Exception as e:
         error = str(e)

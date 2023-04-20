@@ -20,5 +20,6 @@ class Transaction(models.Model):
     stone = models.ForeignKey(Item, on_delete=models.CASCADE)
     price = models.FloatField()
     quantity = models.IntegerField()
-    date = models.DateTimeField()
+    # datetime will serve as a unique identifier of the operation
+    date = models.DateTimeField(unique=True)
 

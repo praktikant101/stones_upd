@@ -57,18 +57,17 @@ def process_data(file):
         if transactions_result["Status"] == "Fail":
             return transactions_result
 
-        clients_result = process_clients(dataframe)
+        clients_result = process_clients(transactions_result["Outcome"])
         if clients_result["Status"] == "Fail":
             return clients_result
 
-        items_result = process_items(dataframe)
+        items_result = process_items(transactions_result["Outcome"])
         if items_result["Status"] == "Fail":
             return items_result
 
-        items_clients_result = process_item_customer(dataframe)
+        items_clients_result = process_item_customer(transactions_result["Outcome"])
         if items_clients_result["Status"] == "Fail":
             return items_clients_result
-
 
     except Exception as e:
         error = str(e)
