@@ -21,7 +21,7 @@ class FileUploadView(APIView):
         serializer = FileUploadSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             result = process_data(serializer.validated_data['file'])
-            return Response({"status": result["Status"], "outcome": result["Outcome"]}, status=200)
+            return Response({"status": result["Status"], "Desc": result["Desc"]}, status=200)
 
 
 class ClientGemsView(generics.ListAPIView):
