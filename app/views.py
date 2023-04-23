@@ -1,5 +1,6 @@
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
+from django.core.cache import cache
 
 from rest_framework import generics
 from rest_framework.views import APIView
@@ -21,14 +22,14 @@ class FileUploadView(APIView):
         serializer = FileUploadSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             result = process_data(serializer.validated_data['file'])
-            return Response({"status": result["Status"], "Desc": result["Desc"]}, status=200)
+            return Response({"status": result.status, "Desc": result.desc}, status=200)
 
 
 class ClientGemsView(generics.ListAPIView):
     queryset = Client.objects.filter(gems__gt=[])
     serializer_class = ClientGemsSerializer
 
-    @method_decorator(cache_page(60 * 60))
+    @method_decorator(cache_page(300))
     def dispatch(self, request, *args, **kwargs):
         return super().dispatch(request, *args, **kwargs)
 
@@ -37,6 +38,6 @@ class ClientView(generics.ListAPIView):
     queryset = Client.objects.all()
     serializer_class = ClientGemsSerializer
 
-    @method_decorator(cache_page(60 * 60))
+    @method_decorator(cache_page(300))
     def dispatch(self, request, *args, **kwargs):
         return super().dispatch(request, *args, **kwargs)

@@ -6,6 +6,44 @@ from django.db.models import Count
 from .models import Transaction, ItemCustomer, Client
 
 
+class ProcessDataError(BaseException):
+    pass
+
+
+class Result:
+    def __init__(self, status="OK", desc="Data proceeded successfully"):
+        self.status = status
+        self.desc = desc
+
+    @classmethod
+    def fail(cls, error_message):
+        result = cls(status="Fail", desc=error_message)
+        return result
+
+    @classmethod
+    def success(cls):
+        return cls()
+
+
+def check_file(file):
+    if not file.name.endswith(".csv"):
+        return Result.fail("Invalid file type. Only .csv files are allowed")
+
+    try:
+        df = pd.read_csv(file)
+        result = Result(desc=df)
+
+    except ProcessDataError as e:
+        error = str(e)
+        return Result.fail(error)
+
+    if not list(df.columns) == ['customer', 'item', 'total', 'quantity', 'date']:
+        error = "Invalid data structure. Columns should be ['customer', 'item', 'total', 'quantity', 'date']"
+        return Result.fail(error)
+
+    return result
+
+
 def check_date_format(dataframe):
     dataframe["date"] = pd.to_datetime(dataframe["date"])
 
@@ -46,7 +84,6 @@ def check_gems(queryset):
 
 
 def check_clients(queryset, dataframe):
-
     username_values = queryset.values_list("username", flat=True)
     clients_prices = dataframe.groupby("customer")["total"].agg(sum)
 

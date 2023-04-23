@@ -1,11 +1,8 @@
-import pandas as pd
-from datetime import datetime
+from django.core.cache import cache
 import warnings
 
-from django.db.models import Count
-
 from .models import Client, Item, ItemCustomer, Transaction
-from .secondary_service import check_date_format, check_gems, check_clients
+from .data_check import check_date_format, check_gems, check_clients, Result, ProcessDataError
 
 # avoiding unnecessary warnings that litter logs
 warnings.filterwarnings("ignore", category=RuntimeWarning, message="DateTimeField .* received a naive datetime")
@@ -14,13 +11,11 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, message="DateTimeFiel
 def process_transactions(dataframe):
     # removing duplicates by checking the uniqueness of transactions according to datetime
 
-    result = {"Status": "Fail", "Desc": ""}
-
     try:
         # saving clients and items into DB if they are not there yet
         for f in [process_clients, process_items, process_item_customer]:
             outcome = f(dataframe)
-            if outcome["Status"] == "Fail":
+            if outcome.status == "Fail":
                 return outcome
 
         # validating date format and removing duplicates
@@ -41,19 +36,14 @@ def process_transactions(dataframe):
         clients = Client.objects.all()
         handling_gems(clients)
 
-        result["Status"] = "OK"
-        result["Desc"] = "Data successfully processed"
+        return Result.success()
 
     except Exception as e:
         error = str(e)
-        result["Desc"] = "Failed to proceed transactions data: " + error
-        return result
-
-    return result
+        return Result.fail("Failed to proceed transactions data: " + error)
 
 
 def handling_gems(queryset):
-
     gems_filtered, gems = check_gems(queryset)
 
     customers_gems_update = []
@@ -65,8 +55,6 @@ def handling_gems(queryset):
 
 
 def process_clients(dataframe):
-    result = {"Status": "Fail", "Desc": ""}
-
     clients = Client.objects.all()
 
     try:
@@ -75,19 +63,13 @@ def process_clients(dataframe):
         Client.objects.bulk_update(existing_customers, ["spent_money"])
         Client.objects.bulk_create(new_customers)
 
-        result["Status"] = "OK"
-        result["Desc"] = "Data successfully processed"
+        return Result.success()
 
-        return result
-
-    except Exception as e:
-        result["Desc"] = "Failed to proceed clients data: " + str(e)
-        return result
+    except ProcessDataError as e:
+        return Result.fail("Failed to proceed clients data: " + str(e))
 
 
 def process_items(dataframe):
-    result = {"Status": "Fail", "Desc": ""}
-
     try:
         item_values = Item.objects.values_list("name", flat=True)
         items = dataframe["item"].unique()
@@ -101,19 +83,13 @@ def process_items(dataframe):
 
         Item.objects.bulk_create(items_new)
 
-        result["Status"] = "OK"
-        result["Desc"] = "Data successfully processed"
+        return Result.success()
 
-        return result
-
-    except Exception as e:
-        result["Desc"] = "Failed to proceed items data: " + str(e)
-        return result
+    except ProcessDataError as e:
+        return Result.fail("Failed to proceed items data: " + str(e))
 
 
 def process_item_customer(dataframe):
-    result = {"Status": "Fail", "Desc": ""}
-
     try:
         item_customer_values = ItemCustomer.objects.values_list("item__name", "client__username")
         item_customer_new = []
@@ -128,14 +104,10 @@ def process_item_customer(dataframe):
 
         ItemCustomer.objects.bulk_create(item_customer_new)
 
-        result["Status"] = "OK"
-        result["Desc"] = "Data successfully processed"
+        return Result.success()
 
-        return result
-
-    except Exception as e:
-        result["Desc"] = "Failed to proceed item customer data: " + str(e)
-        return result
+    except ProcessDataError as e:
+        return Result.fail("Failed to proceed item_customer data: " + str(e))
 
 
 def check_initial_data(dataframe):
@@ -143,11 +115,11 @@ def check_initial_data(dataframe):
 
         clients_result = process_clients(dataframe)
 
-        if clients_result["Status"] == "Fail":
+        if clients_result.status == "Fail":
             return clients_result
 
     if not Item.objects.exists():
         items_result = process_items(dataframe)
 
-        if items_result["Status"] == "Fail":
+        if items_result.status == "Fail":
             return items_result
