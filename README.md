@@ -25,7 +25,7 @@ DB_PASSWORD=
 DB_PORT=
 ```
 
-Add the following three parameters to your newly created .env file:
+Add the following five parameters to your newly created .env file:
 
 ```bash
 DB_HOST=db
