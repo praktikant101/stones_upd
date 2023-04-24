@@ -16,6 +16,11 @@ services:
       - ./.env
     depends_on:
       - db
+      - redis
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+
 
   db:
     image: postgres:15.1-alpine
@@ -26,6 +31,8 @@ services:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_DB=${DB_NAME}
 
+  redis:
+    image: "redis:alpine"
 
 volumes:
   postgres_data:

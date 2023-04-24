@@ -10,7 +10,7 @@ def process_data(file):
         dataframe = check_file(file)
 
         if dataframe.status == "Fail":
-            return Result.fail("Invalid file type. Only .csv files are allowed")
+            return dataframe
 
         dataframe = dataframe.desc
 

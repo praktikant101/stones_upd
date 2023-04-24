@@ -1,4 +1,3 @@
-from django.core.cache import cache
 import warnings
 
 from .models import Client, Item, ItemCustomer, Transaction
@@ -8,39 +7,19 @@ from .data_check import check_date_format, check_gems, check_clients, Result, Pr
 warnings.filterwarnings("ignore", category=RuntimeWarning, message="DateTimeField .* received a naive datetime")
 
 
-def process_transactions(dataframe):
-    # removing duplicates by checking the uniqueness of transactions according to datetime
+def check_initial_data(dataframe):
+    if not Client.objects.exists():
 
-    try:
-        # saving clients and items into DB if they are not there yet
-        for f in [process_clients, process_items, process_item_customer]:
-            outcome = f(dataframe)
-            if outcome.status == "Fail":
-                return outcome
+        clients_result = process_clients(dataframe)
 
-        # validating date format and removing duplicates
-        dataframe = check_date_format(dataframe)
+        if clients_result.status == "Fail":
+            return clients_result
 
-        transactions_to_create = []
+    if not Item.objects.exists():
+        items_result = process_items(dataframe)
 
-        for row in dataframe.itertuples(index=True, name='Pandas'):
-            transactions_to_create.append(Transaction(client=Client.objects.get(username=getattr(row, "customer")),
-                                                      item=Item.objects.get(name=getattr(row, "item")),
-                                                      price=getattr(row, "total"),
-                                                      quantity=getattr(row, "quantity"),
-                                                      date=getattr(row, "date")))
-
-        Transaction.objects.bulk_create(transactions_to_create)
-
-        # updating gems for clients
-        clients = Client.objects.all()
-        handling_gems(clients)
-
-        return Result.success()
-
-    except Exception as e:
-        error = str(e)
-        return Result.fail("Failed to proceed transactions data: " + error)
+        if items_result.status == "Fail":
+            return items_result
 
 
 def handling_gems(queryset):
@@ -110,16 +89,40 @@ def process_item_customer(dataframe):
         return Result.fail("Failed to proceed item_customer data: " + str(e))
 
 
-def check_initial_data(dataframe):
-    if not Client.objects.exists():
+def process_transactions(dt):
 
-        clients_result = process_clients(dataframe)
+    try:
+        # validating date format and removing duplicates
+        dataframe = check_date_format(dt)
 
-        if clients_result.status == "Fail":
-            return clients_result
+        if dataframe.status == "Fail":
+            return dataframe
 
-    if not Item.objects.exists():
-        items_result = process_items(dataframe)
+        dataframe = dataframe.desc
 
-        if items_result.status == "Fail":
-            return items_result
+        # saving clients and items into DB if they are not there yet
+        for f in [process_clients, process_items, process_item_customer]:
+            outcome = f(dataframe)
+            if outcome.status == "Fail":
+                return outcome
+
+        transactions_to_create = []
+
+        for row in dataframe.itertuples(index=True, name='Pandas'):
+            transactions_to_create.append(Transaction(client=Client.objects.get(username=getattr(row, "customer")),
+                                                      item=Item.objects.get(name=getattr(row, "item")),
+                                                      price=getattr(row, "total"),
+                                                      quantity=getattr(row, "quantity"),
+                                                      date=getattr(row, "date")))
+
+        Transaction.objects.bulk_create(transactions_to_create)
+
+        # updating gems for clients
+        clients = Client.objects.all()
+        handling_gems(clients)
+
+        return Result.success()
+
+    except ProcessDataError as e:
+        error = str(e)
+        return Result.fail("Failed to proceed transactions data: " + error)

@@ -26,7 +26,9 @@ class Result:
 
 
 def check_file(file):
+
     if not file.name.endswith(".csv"):
+        print(file.name)
         return Result.fail("Invalid file type. Only .csv files are allowed")
 
     try:
@@ -37,7 +39,7 @@ def check_file(file):
         error = str(e)
         return Result.fail(error)
 
-    if not list(df.columns) == ['customer', 'item', 'total', 'quantity', 'date']:
+    if not (list(df.columns) == ['customer', 'item', 'total', 'quantity', 'date']):
         error = "Invalid data structure. Columns should be ['customer', 'item', 'total', 'quantity', 'date']"
         return Result.fail(error)
 
@@ -45,19 +47,26 @@ def check_file(file):
 
 
 def check_date_format(dataframe):
-    dataframe["date"] = pd.to_datetime(dataframe["date"])
 
-    dataframe["date"] = dataframe["date"].apply(
-        lambda x: datetime.strptime(str(x), '%Y-%m-%d %H:%M:%S.%f'))
+    try:
+        dataframe["date"] = pd.to_datetime(dataframe["date"])
 
-    values_list = list(Transaction.objects.values_list("date", flat=True))
+        dataframe["date"] = dataframe["date"].apply(
+            lambda x: datetime.strptime(str(x), '%Y-%m-%d %H:%M:%S.%f'))
 
-    values_list = pd.to_datetime(values_list, utc=False, errors='coerce')
-    values_list = values_list.tz_localize(None)
+        values_list = list(Transaction.objects.values_list("date", flat=True))
 
-    dataframe = dataframe[~dataframe["date"].isin(values_list)]
+        values_list = pd.to_datetime(values_list, utc=False, errors='coerce')
+        values_list = values_list.tz_localize(None)
 
-    return dataframe
+        dataframe = dataframe[~dataframe["date"].isin(values_list)]
+
+        return Result(desc=dataframe)
+
+    except ValueError as e:
+        return Result.fail("Failed to proceed date format: " + str(e))
+
+
 
 
 def check_gems(queryset):
