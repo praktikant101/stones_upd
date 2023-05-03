@@ -12,11 +12,7 @@ def heat_data(dataframe):
         update_clients(dataframe)
 
     if not Item.objects.exists():
-        items_result = process_items(dataframe)
-
-        if items_result.status == "Fail":
-            return items_result
-
+        process_items(dataframe)
 
 def handling_gems(queryset):
     gems_filtered, gems = check_gems(queryset)
