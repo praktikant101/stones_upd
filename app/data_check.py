@@ -31,7 +31,7 @@ def check_date_format(dataframe):
     values_list = pd.to_datetime(values_list, utc=False, errors='coerce')
     values_list = values_list.tz_localize(None)
 
-    dataframe = dataframe[~dataframe["date"].isin(values_list)]
+    return dataframe[~dataframe["date"].isin(values_list)]
 
 
 
