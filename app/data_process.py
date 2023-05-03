@@ -1,7 +1,7 @@
 import warnings
 
 from .models import Client, Item, ItemCustomer, Transaction
-from .data_check import check_date_format, check_gems, check_clients
+from .data_check import check_date_format, check_gems
 
 # avoiding unnecessary warnings that litter logs
 warnings.filterwarnings("ignore", category=RuntimeWarning, message="DateTimeField .* received a naive datetime")
@@ -34,6 +34,7 @@ def update_clients(dataframe):
     existing_users = UserService.get_existing_users_with_updated_spent_money(dataframe)
 
     UserService.update_or_create_users(new_customers + existing_users)
+
 
 def process_items(dataframe):
     item_values = Item.objects.values_list("name", flat=True)
@@ -89,6 +90,7 @@ def process_transactions(dt):
     clients = Client.objects.all()
     handling_gems(clients)
 
+
 class UserService:
     @classmethod
     def get_new_users(self, data):
@@ -135,4 +137,3 @@ class UserService:
     @classmethod
     def get_current_users(self):
         return Client.objects.all()
-

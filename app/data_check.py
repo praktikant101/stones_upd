@@ -58,24 +58,6 @@ def check_gems(queryset):
     return gems_filtered, gems
 
 
-def check_clients(queryset, dataframe):
-    username_values = queryset.values_list("username", flat=True)
-    clients_prices = dataframe.groupby("customer")["total"].agg(sum)
-
-    new_customers = []
-    existing_customers = []
-
-    for username, price in clients_prices.items():
-        if username in username_values:
-            client = Client.objects.get(username=username)
-            client.spent_money += price
-            existing_customers.append(client)
-        else:
-            new_customers.append(Client(username=username, spent_money=price))
-
-    return existing_customers, new_customers
-
-
 class InvalidFileType(StonesException):
     def __init__(self, message="Invalid file type. Only .csv files are allowed") -> None:
         super().__init__(message)

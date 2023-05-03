@@ -16,9 +16,7 @@ def process_data(file):
 
         # saving Transaction objects
         # removing duplicates from dataframe if same objects are already in DB
-        transactions_result = process_transactions(dataframe)
-        if transactions_result.status == "Fail":
-            return transactions_result
+        process_transactions(dataframe)
 
     except StonesException as e:
         return Result.fail("Failed to proceed data - Business Logic error: " + e.message)
