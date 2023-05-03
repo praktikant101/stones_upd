@@ -27,9 +27,6 @@ def process_data(file):
 
     return Result.success()
 
-class ProcessDataError(BaseException):
-    pass
-
 
 class Result:
     def __init__(self, status="OK", desc="Data proceeded successfully"):

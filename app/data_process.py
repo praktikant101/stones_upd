@@ -68,11 +68,6 @@ def process_transactions(dt):
     # validating date format and removing duplicates
     dataframe = check_date_format(dt)
 
-    if dataframe.status == "Fail":
-        return dataframe
-
-    dataframe = dataframe.desc
-
     # saving clients and items into DB if they are not there yet
     for f in [update_clients, process_items, process_item_customer]:
         outcome = f(dataframe)
