@@ -5,67 +5,33 @@ from django.db.models import Count
 
 from .models import Transaction, ItemCustomer, Client
 
-
-class ProcessDataError(BaseException):
-    pass
-
-
-class Result:
-    def __init__(self, status="OK", desc="Data proceeded successfully"):
-        self.status = status
-        self.desc = desc
-
-    @classmethod
-    def fail(cls, error_message):
-        result = cls(status="Fail", desc=error_message)
-        return result
-
-    @classmethod
-    def success(cls):
-        return cls()
+from stones_exceptions import StonesException
 
 
 def check_file(file):
-
     if not file.name.endswith(".csv"):
-        print(file.name)
-        return Result.fail("Invalid file type. Only .csv files are allowed")
+        raise InvalidFileType
 
-    try:
-        df = pd.read_csv(file)
-        result = Result(desc=df)
-
-    except ProcessDataError as e:
-        error = str(e)
-        return Result.fail(error)
+    df = pd.read_csv(file)
 
     if not (list(df.columns) == ['customer', 'item', 'total', 'quantity', 'date']):
-        error = "Invalid data structure. Columns should be ['customer', 'item', 'total', 'quantity', 'date']"
-        return Result.fail(error)
+        raise ProcessDataError
 
-    return result
+    return df
 
 
 def check_date_format(dataframe):
+    dataframe["date"] = pd.to_datetime(dataframe["date"])
 
-    try:
-        dataframe["date"] = pd.to_datetime(dataframe["date"])
+    dataframe["date"] = dataframe["date"].apply(
+        lambda x: datetime.strptime(str(x), '%Y-%m-%d %H:%M:%S.%f'))
 
-        dataframe["date"] = dataframe["date"].apply(
-            lambda x: datetime.strptime(str(x), '%Y-%m-%d %H:%M:%S.%f'))
+    values_list = list(Transaction.objects.values_list("date", flat=True))
 
-        values_list = list(Transaction.objects.values_list("date", flat=True))
+    values_list = pd.to_datetime(values_list, utc=False, errors='coerce')
+    values_list = values_list.tz_localize(None)
 
-        values_list = pd.to_datetime(values_list, utc=False, errors='coerce')
-        values_list = values_list.tz_localize(None)
-
-        dataframe = dataframe[~dataframe["date"].isin(values_list)]
-
-        return Result(desc=dataframe)
-
-    except ValueError as e:
-        return Result.fail("Failed to proceed date format: " + str(e))
-
+    dataframe = dataframe[~dataframe["date"].isin(values_list)]
 
 
 
@@ -108,3 +74,14 @@ def check_clients(queryset, dataframe):
             new_customers.append(Client(username=username, spent_money=price))
 
     return existing_customers, new_customers
+
+
+class InvalidFileType(StonesException):
+    def __init__(self, message="Invalid file type. Only .csv files are allowed") -> None:
+        super().__init__(message)
+
+
+class ProcessDataError(StonesException):
+    def __init__(self,
+                 message="Invalid data structure. Columns should be ['customer', 'item', 'total', 'quantity', 'date']") -> None:
+        super().__init__(message)
